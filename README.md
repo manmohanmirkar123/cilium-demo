@@ -442,38 +442,6 @@ Say:
 
 Use this when you want a quick walkthrough without typing each command manually.
 
-## GitHub Sharing Tips
-
-When you push this repo to GitHub, add:
-
-- screenshots from Hubble UI in `docs/`
-- a short GIF or asciinema recording of `run-demo.sh`
-- your own notes in the README about what Cilium is doing under the hood
-
-Suggested screenshots:
-
-- Hubble UI service map
-- allowed flow from `frontend` to `backend`
-- dropped flow from `attacker` to `backend`
-- `cilium status --wait` after install
-
-## Publishing To GitHub
-
-Initialize your first commit:
-
-```bash
-git add .
-git commit -m "Add Cilium demo repo"
-```
-
-Create a GitHub repository, then connect and push:
-
-```bash
-git remote add origin <your-github-repo-url>
-git branch -M main
-git push -u origin main
-```
-
 ## Cleanup
 
 ```bash
