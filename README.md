@@ -243,6 +243,10 @@ Expected output:
 hello-from-backend
 ```
 
+Hubble UI:
+
+![alt text](<Pasted Graphic.tiff>)
+
 ### Denied `attacker -> backend`
 
 ```bash
