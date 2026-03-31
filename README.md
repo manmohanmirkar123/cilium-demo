@@ -258,6 +258,8 @@ curl: (28) Connection timed out after 5001 milliseconds
 command terminated with exit code 28
 ```
 
+![Hubble UI Service Map](docs/screenshots/ss2.png)
+
 ### Allowed `frontend -> api-backend` with `GET /get`
 
 ```bash
@@ -281,7 +283,7 @@ Expected output:
 }
 ```
 
-![Hubble UI Service Map](docs/screenshots/ss2.png)
+![Hubble UI Service Map](docs/screenshots/ss3.png)
 
 ### Allowed `frontend -> api-backend` with `POST /post`
 
