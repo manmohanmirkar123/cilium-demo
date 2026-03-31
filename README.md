@@ -88,6 +88,9 @@ cilium status --wait
 kubectl get pods -A
 ```
 
+<img width="1318" height="549" alt="image" src="https://github.com/user-attachments/assets/1fe5218d-de97-4dd1-9b9f-528050561e0e" />
+
+
 ### 3. Validate the app before policy discussion
 
 ```bash
