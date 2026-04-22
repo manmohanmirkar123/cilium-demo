@@ -1,0 +1,26 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: egress-client-policy
+  namespace: demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: egress-client
+  egress:
+    # Allow DNS to kube-system so name resolution still works.
+    # The dns proxy rule lets Cilium intercept responses for FQDN tracking.
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # All other egress from egress-client is implicitly denied.
+    # No toEndpoints / toFQDNs / toCIDR rules mean nothing else is reachable.

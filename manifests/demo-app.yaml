@@ -114,3 +114,89 @@ spec:
             - /bin/sh
             - -c
             - sleep infinity
+---
+# open-backend: no ingress policy applied — used to demonstrate egress control
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-backend
+  namespace: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-backend
+  template:
+    metadata:
+      labels:
+        app: open-backend
+    spec:
+      containers:
+        - name: open-backend
+          image: hashicorp/http-echo:1.0.0
+          args:
+            - "-text=hello-from-open-backend"
+            - "-listen=:8080"
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-backend
+  namespace: demo
+spec:
+  selector:
+    app: open-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# egress-client: has a restrictive egress policy — can only reach DNS, blocked from all services
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: egress-client
+  namespace: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: egress-client
+  template:
+    metadata:
+      labels:
+        app: egress-client
+    spec:
+      containers:
+        - name: egress-client
+          image: curlimages/curl:8.12.1
+          command:
+            - /bin/sh
+            - -c
+            - sleep infinity
+---
+# external-client: has an FQDN egress policy — can only reach httpbin.org
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-client
+  namespace: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: external-client
+  template:
+    metadata:
+      labels:
+        app: external-client
+    spec:
+      containers:
+        - name: external-client
+          image: curlimages/curl:8.12.1
+          command:
+            - /bin/sh
+            - -c
+            - sleep infinity

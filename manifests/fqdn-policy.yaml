@@ -1,0 +1,37 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: fqdn-egress-policy
+  namespace: demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: external-client
+  egress:
+    # Allow DNS to kube-system. The dns proxy rule is required so Cilium can
+    # intercept responses and derive IP addresses for the toFQDNs rules below.
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # Allow egress to httpbin.org on HTTP and HTTPS only.
+    # Cilium resolves the name via the DNS proxy and programs the resolved IPs
+    # into the dataplane automatically. As TTLs expire and IPs rotate, Cilium
+    # updates the policy without any manual intervention.
+    - toFQDNs:
+        - matchName: "httpbin.org"
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "443"
+              protocol: TCP
+    # All other egress is implicitly denied because an egress policy is present.
