@@ -31,14 +31,17 @@ kubectl config use-context "kind-${CLUSTER_NAME}" >/dev/null
 
 if kubectl -n kube-system get daemonset cilium >/dev/null 2>&1; then
   echo "Cilium is already installed"
-  cilium status --wait
 else
   echo "Installing Cilium"
   cilium install --wait
 fi
 
-echo "Enabling Hubble"
-cilium hubble enable
+if kubectl -n kube-system get deployment hubble-relay >/dev/null 2>&1; then
+  echo "Hubble is already enabled"
+else
+  echo "Enabling Hubble"
+  cilium hubble enable
+fi
 cilium status --wait
 
 echo "Deploying demo workloads"
@@ -51,9 +54,13 @@ kubectl rollout status -n demo deploy/api-backend --timeout=120s || {
   exit 1
 }
 kubectl rollout status -n demo deploy/attacker --timeout=120s
+kubectl rollout status -n demo deploy/egress-client --timeout=120s
+kubectl rollout status -n demo deploy/external-client --timeout=120s
 
 echo "Applying Cilium network policies"
 kubectl apply -f manifests/backend-ingress-policy.yaml
 kubectl apply -f manifests/api-http-policy.yaml
+kubectl apply -f manifests/egress-policy.yaml
+kubectl apply -f manifests/fqdn-policy.yaml
 
 echo "Setup complete"

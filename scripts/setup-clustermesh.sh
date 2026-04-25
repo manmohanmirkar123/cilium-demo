@@ -41,7 +41,8 @@ install_cilium_if_missing() {
       --set cluster.name="${cluster_name}" \
       --set cluster.id="${cluster_id}" \
       --set kubeProxyReplacement=true \
-      --wait
+      --wait \
+      --wait-duration 10m
   fi
 
   echo "Enabling Hubble in ${context}"
@@ -72,7 +73,7 @@ enable_clustermesh_if_needed "${CLUSTER1_CONTEXT}"
 enable_clustermesh_if_needed "${CLUSTER2_CONTEXT}"
 
 echo "Connecting clusters"
-cilium clustermesh connect --context "${CLUSTER1_CONTEXT}" --destination-context "${CLUSTER2_CONTEXT}"
+cilium clustermesh connect --context "${CLUSTER1_CONTEXT}" --destination-context "${CLUSTER2_CONTEXT}" --allow-mismatching-ca
 cilium clustermesh status --context "${CLUSTER1_CONTEXT}" --wait
 cilium clustermesh status --context "${CLUSTER2_CONTEXT}" --wait
 

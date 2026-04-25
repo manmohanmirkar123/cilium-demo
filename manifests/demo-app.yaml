@@ -75,9 +75,9 @@ spec:
     spec:
       containers:
         - name: api-backend
-          image: mccutchen/go-httpbin:v2.16.2
+          image: mccutchen/go-httpbin:2.22.1
           ports:
-            - containerPort: 80
+            - containerPort: 8080
 ---
 apiVersion: v1
 kind: Service
@@ -89,7 +89,7 @@ spec:
     app: api-backend
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 8080
       protocol: TCP
 ---
 apiVersion: apps/v1

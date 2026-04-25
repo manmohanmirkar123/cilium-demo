@@ -231,7 +231,7 @@ spec:
             app: frontend
       toPorts:
         - ports:
-            - port: "80"
+            - port: "8080"
               protocol: TCP
           rules:
             http:
@@ -553,16 +553,18 @@ kubectl rollout status -n demo deploy/external-client --timeout=120s
 ### Step 2 — confirm external-client has unrestricted internet access before the policy
 
 ```bash
-kubectl -n demo exec deploy/external-client -- curl -sS --max-time 15 http://httpbin.org/get
+kubectl -n demo exec deploy/external-client -- curl -sS -4 --max-time 15 http://httpbin.org/get
 ```
 
 Expected output: a full JSON response body from httpbin.org.
 
 ```bash
-kubectl -n demo exec deploy/external-client -- curl -sS --max-time 10 http://google.com
+kubectl -n demo exec deploy/external-client -- curl -sS -4 --max-time 10 http://google.com
 ```
 
 Expected output: an HTTP redirect response from google.com. Both succeed because no egress policy is applied yet.
+
+> **Note:** `-4` forces IPv4. Cilium's DNS proxy drops AAAA queries for `toFQDNs`-tracked domains, which causes the Alpine-based curl image (musl libc) to fail `getaddrinfo()`. IPv4-only avoids the AAAA lookup entirely.
 
 ### Step 3 — inspect the FQDN policy before applying
 
@@ -586,6 +588,7 @@ spec:
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
       toPorts:
         - ports:
             - port: "53"
@@ -627,7 +630,7 @@ kubectl -n demo get ciliumnetworkpolicy fqdn-egress-policy
 ### Step 5 — test: external-client can reach httpbin.org
 
 ```bash
-kubectl -n demo exec deploy/external-client -- curl -sS --max-time 15 http://httpbin.org/get
+kubectl -n demo exec deploy/external-client -- curl -sS -4 --max-time 15 http://httpbin.org/get
 ```
 
 Expected output:
@@ -650,7 +653,7 @@ The request succeeds because `httpbin.org` is in the `toFQDNs` allowlist and por
 ### Step 6 — test: external-client is blocked from google.com
 
 ```bash
-kubectl -n demo exec deploy/external-client -- curl -sS --max-time 10 http://google.com
+kubectl -n demo exec deploy/external-client -- curl -sS -4 --max-time 10 http://google.com
 ```
 
 Expected output:
@@ -718,6 +721,51 @@ kubectl -n demo describe ciliumnetworkpolicy fqdn-egress-policy
 ## Demo 7 — ClusterMesh
 
 ClusterMesh connects two or more Cilium clusters so that services can span cluster boundaries. This demo shows global service load balancing: a single service name resolves to backends in both clusters, and repeated requests distribute across them.
+
+```
+┌─────────────────────────────────────┐          ┌─────────────────────────────────────┐
+│           cilium-west               │          │           cilium-east               │
+│       namespace: clustermesh-demo   │          │       namespace: clustermesh-demo   │
+│                                     │          │                                     │
+│  ┌────────┐                         │          │                         ┌────────┐  │
+│  │ client │                         │          │                         │ client │  │
+│  └───┬────┘                         │          │                         └────┬───┘  │
+│      │ curl http://global-echo/      │          │      curl http://global-echo/ │     │
+│      ▼                              │          │                              ▼      │
+│  ┌────────────────────────────┐     │          │     ┌────────────────────────────┐  │
+│  │    Service: global-echo    │     │          │     │    Service: global-echo    │  │
+│  │  annotation:               │     │          │     │  annotation:               │  │
+│  │  service.cilium.io/global  │     │ ClusterMesh    │  service.cilium.io/global  │  │
+│  │    = "true"                ◄─────┼── sync ──┼────►    = "true"                │  │
+│  └────────┬───────────────────┘     │          │     └───────────────┬────────────┘  │
+│           │                         │          │                     │               │
+│        50%│              ┌──────────┼──────────┼──────────┐  50%    │               │
+│           │              │          │          │          │          │               │
+│           ▼              ▼          │          │          ▼          ▼               │
+│  ┌─────────────┐  cross-cluster     │          │     cross-cluster  ┌─────────────┐  │
+│  │ global-echo │     routing        │          │        routing     │ global-echo │  │
+│  │     pod     │                    │          │                    │     pod     │  │
+│  │ "hello-from-│                    │          │                    │ "hello-from-│  │
+│  │ cilium-west"│                    │          │                    │ cilium-east"│  │
+│  └─────────────┘                    │          │                    └─────────────┘  │
+│                                     │          │                                     │
+│  ┌──────────────────────────────┐   │          │   ┌──────────────────────────────┐  │
+│  │   clustermesh-apiserver      │◄──┼── mTLS ──┼──►│   clustermesh-apiserver      │  │
+│  │   (etcd-backed KV store)     │   │          │   │   (etcd-backed KV store)     │  │
+│  └──────────────────────────────┘   │          │   └──────────────────────────────┘  │
+└─────────────────────────────────────┘          └─────────────────────────────────────┘
+
+When client calls http://global-echo/, Cilium intercepts and load-balances 50/50
+across the local west pod and the remote east pod — transparently, with no app changes.
+```
+
+> **Resource warning:** This demo creates two additional 3-node kind clusters (`cilium-west` and `cilium-east`). Running them alongside the standalone `cilium-demo` cluster totals 9 kind nodes, which causes severe CPU contention on Docker Desktop and can crash API servers mid-setup. **Delete the standalone cluster first:**
+>
+> ```bash
+> kind delete cluster --name cilium-demo
+> ```
+>
+> You can recreate it afterwards with `./scripts/setup.sh`. Docker Desktop should have at least **8 CPUs and 12 GB RAM** allocated (Settings → Resources) before running this demo.
 
 ### Files
 
@@ -902,7 +950,7 @@ command terminated with exit code 28
 ### Allowed — external-client → httpbin.org (in FQDN allowlist)
 
 ```bash
-kubectl -n demo exec deploy/external-client -- curl -sS --max-time 15 http://httpbin.org/get
+kubectl -n demo exec deploy/external-client -- curl -sS -4 --max-time 15 http://httpbin.org/get
 ```
 
 Full JSON response body from httpbin.org.
@@ -910,7 +958,7 @@ Full JSON response body from httpbin.org.
 ### Denied — external-client → google.com (not in FQDN allowlist)
 
 ```bash
-kubectl -n demo exec deploy/external-client -- curl -sS --max-time 10 http://google.com
+kubectl -n demo exec deploy/external-client -- curl -sS -4 --max-time 10 http://google.com
 ```
 
 ```
